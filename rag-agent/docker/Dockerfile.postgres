@@ -1,0 +1,22 @@
+# pgvector já vem pronto na imagem base; Apache AGE é instalado sobre ela.
+FROM pgvector/pgvector:pg16
+
+ARG AGE_VERSION=PG16/v1.5.0-rc0
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    build-essential \
+    git \
+    postgresql-server-dev-16 \
+    flex \
+    bison \
+    && update-ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN git clone --branch ${AGE_VERSION} https://github.com/apache/age.git /tmp/age \
+    && cd /tmp/age \
+    && make PG_CONFIG=/usr/lib/postgresql/16/bin/pg_config \
+    && make install PG_CONFIG=/usr/lib/postgresql/16/bin/pg_config \
+    && rm -rf /tmp/age
+
+RUN apt-get purge -y build-essential git flex bison && apt-get autoremove -y

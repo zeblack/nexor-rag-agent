@@ -1,0 +1,5 @@
+.env
+uploader_state.db
+logs/*.jsonl
+__pycache__/
+*.pyc

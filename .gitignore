@@ -1,0 +1,18 @@
+# Segredos e configuração local — nunca commitar
+.env
+*.conf
+
+# Bancos de dados locais
+*.db
+
+# Logs
+logs/*.log
+logs/*.jsonl
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Backups de banco
+backups/

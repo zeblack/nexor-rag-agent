@@ -1,0 +1,109 @@
+services:
+  postgres:
+    build:
+      context: .
+      dockerfile: Dockerfile.postgres
+    environment:
+      POSTGRES_DB: rag_db
+      POSTGRES_USER: rag_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../init-db:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rag_user -d rag_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # Porta 5432 NÃO exposta ao host — só acessível pela rede interna do compose.
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  gluetun:
+    image: qmcgaw/gluetun
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      VPN_SERVICE_PROVIDER: ${VPN_SERVICE_PROVIDER:-protonvpn}
+      VPN_TYPE: wireguard
+      WIREGUARD_PRIVATE_KEY: ${WIREGUARD_PRIVATE_KEY:?}
+      WIREGUARD_ADDRESSES: ${WIREGUARD_ADDRESSES:?}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "https://api.ipify.org"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  rag_agent:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: api
+    network_mode: "service:gluetun"
+    volumes:
+      - ingest_tmp:/tmp/rag_ingest
+    depends_on:
+      gluetun:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - ../.env
+
+  rag_worker:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: worker
+    network_mode: "service:gluetun"
+    volumes:
+      - ingest_tmp:/tmp/rag_ingest
+    depends_on:
+      gluetun:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - ../.env
+
+  postgres_backup:
+    image: postgres:16-alpine
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ../backups:/backups
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD:?}
+    entrypoint: >
+      sh -c "while true; do
+        pg_dump -h postgres -U rag_user -d rag_db -F c -f /backups/rag_db_$$(date +%Y%m%d_%H%M%S).dump;
+        find /backups -name '*.dump' -mtime +7 -delete;
+        sleep 86400;
+      done"
+
+  # pgadmin:
+  #   image: dpage/pgadmin4
+  #   environment:
+  #     PGADMIN_DEFAULT_EMAIL: admin@example.com
+  #     PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:?}
+  #   ports:
+  #     - "8080:80"
+  #   depends_on:
+  #     - postgres
+
+volumes:
+  postgres_data:
+  ingest_tmp:

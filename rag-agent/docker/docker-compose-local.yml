@@ -1,0 +1,69 @@
+# Variante SEM VPN/Gluetun, para testes locais de esqueleto (schema, ingestão,
+# retrieval, fila) sem depender de credenciais WireGuard reais. Não usar em
+# produção — o diferencial de tráfego forçado por VPN só existe no compose
+# docker-compose-vps-vpn.yml, usado no deploy real da VPS.
+services:
+  postgres:
+    build:
+      context: .
+      dockerfile: Dockerfile.postgres
+    environment:
+      POSTGRES_DB: rag_db
+      POSTGRES_USER: rag_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local_dev_password}
+    ports:
+      - "5432:5432"  # exposto só para inspeção local via psql/pgAdmin durante o teste
+    volumes:
+      - postgres_data_local:/var/lib/postgresql/data
+      - ../init-db:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rag_user -d rag_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rag_agent:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ingest_tmp:/tmp/rag_ingest
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - ../.env
+
+  rag_worker:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: worker
+    volumes:
+      - ingest_tmp:/tmp/rag_ingest
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - ../.env
+
+volumes:
+  postgres_data_local:
+  ingest_tmp:

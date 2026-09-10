@@ -1,0 +1,8 @@
+.env
+logs/*.log
+docs/*
+!docs/.gitkeep
+backups/
+__pycache__/
+*.pyc
+.venv/

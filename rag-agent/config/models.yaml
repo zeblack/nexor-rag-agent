@@ -1,0 +1,13 @@
+# Modelos permitidos para escolha dinâmica via OpenRouter.
+# Edite esta lista para adicionar/remover modelos disponíveis ao POST /query.
+allowed_models:
+  - id: "deepseek/deepseek-chat"
+    label: "DeepSeek V3 Chat"
+  - id: "meta-llama/llama-3.3-70b-instruct"
+    label: "Llama 3.3 70B Instruct"
+  - id: "qwen/qwen-2.5-72b-instruct"
+    label: "Qwen 2.5 72B Instruct"
+  - id: "mistralai/mistral-nemo"
+    label: "Mistral Nemo"
+
+default_model: "deepseek/deepseek-chat"
