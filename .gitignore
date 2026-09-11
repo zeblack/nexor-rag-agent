@@ -16,3 +16,6 @@ __pycache__/
 
 # Backups de banco
 backups/
+
+# Notas de desenvolvimento locais — nunca publicar
+GUIA_CONTINUIDADE.md
